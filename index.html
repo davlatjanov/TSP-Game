@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TSP Game: Space Explorer Challenge</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        background-color: #0f1631;
+        color: white;
+      }
+
+      h1 {
+        text-align: center;
+        margin-bottom: 10px;
+        color: #7df9ff;
+        text-shadow: 0 0 5px #7df9ff;
+      }
+
+      .game-info {
+        width: 80%;
+        text-align: center;
+        margin-bottom: 20px;
+        color: #a0a0ff;
+        font-style: italic;
+      }
+
+      #game-container {
+        width: 800px;
+        height: 500px;
+        position: relative;
+        border: 2px solid #7df9ff;
+        border-radius: 10px;
+        background-color: #142046;
+        box-shadow: 0 0 15px rgba(125, 249, 255, 0.5);
+        overflow: hidden;
+      }
+
+      #canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 1;
+      }
+
+      .node {
+        width: 40px;
+        height: 40px;
+        background-color: #ff5c5c;
+        border-radius: 50%;
+        position: absolute;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+        z-index: 2;
+        box-shadow: 0 0 10px rgba(255, 92, 92, 0.7);
+        transition: all 0.2s ease;
+        transform: translate(-50%, -50%);
+      }
+
+      .node.visited {
+        background-color: #5cff84;
+        box-shadow: 0 0 10px rgba(92, 255, 132, 0.7);
+      }
+
+      .node.start {
+        background-color: #ffcc00;
+        box-shadow: 0 0 10px rgba(255, 204, 0, 0.7);
+      }
+
+      .node.current {
+        transform: translate(-50%, -50%) scale(1.2);
+      }
+
+      .node:hover {
+        transform: translate(-50%, -50%) scale(1.1);
+      }
+
+      .edge-cost {
+        position: absolute;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-size: 12px;
+        z-index: 3;
+      }
+
+      #controls {
+        margin-top: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
+        width: 800px;
+      }
+
+      .buttons {
+        display: flex;
+        gap: 15px;
+      }
+
+      button {
+        padding: 10px 20px;
+        background-color: #7df9ff;
+        color: #0f1631;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.2s ease;
+        min-width: 120px;
+      }
+
+      button:hover {
+        background-color: #5cdfff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(125, 249, 255, 0.3);
+      }
+
+      button:active {
+        transform: translateY(0);
+      }
+
+      button:disabled {
+        background-color: #555;
+        color: #999;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .status-panel {
+        width: 100%;
+        display: flex;
+        justify-content: space-around;
+        background-color: #142046;
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px solid #7df9ff;
+      }
+
+      .status-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .status-label {
+        font-size: 0.9rem;
+        color: #a0a0ff;
+      }
+
+      .status-value {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #7df9ff;
+      }
+
+      #route-display {
+        margin-top: 10px;
+        font-size: 1.1rem;
+        letter-spacing: 1px;
+      }
+
+      #message {
+        margin-top: 15px;
+        padding: 10px 15px;
+        border-radius: 5px;
+        text-align: center;
+        min-height: 20px;
+        width: 100%;
+      }
+
+      .success {
+        background-color: rgba(92, 255, 132, 0.2);
+        color: #5cff84;
+      }
+
+      .error {
+        background-color: rgba(255, 92, 92, 0.2);
+        color: #ff5c5c;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      .tooltip {
+        position: absolute;
+        background-color: rgba(20, 32, 70, 0.9);
+        border: 1px solid #7df9ff;
+        padding: 8px 12px;
+        border-radius: 5px;
+        z-index: 100;
+        color: white;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+        box-shadow: 0 0 10px rgba(125, 249, 255, 0.3);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Space Explorer Challenge</h1>
+    <div class="game-info">
+      Visit all planetary outposts with minimum fuel consumption and return to
+      the starting point.
+    </div>
+
+    <div id="game-container">
+      <canvas id="canvas"></canvas>
+    </div>
+
+    <div id="controls">
+      <div class="status-panel">
+        <div class="status-item">
+          <div class="status-label">Current Location</div>
+          <div id="current-node" class="status-value">Start</div>
+        </div>
+        <div class="status-item">
+          <div class="status-label">Fuel Used</div>
+          <div id="total-cost" class="status-value">0</div>
+        </div>
+        <div class="status-item">
+          <div class="status-label">Outposts Visited</div>
+          <div id="visited-count" class="status-value">0/0</div>
+        </div>
+      </div>
+
+      <div id="route-display">Route: <span id="route-path">-</span></div>
+
+      <div class="buttons">
+        <button id="start-button">Start Mission</button>
+        <button id="complete-route" disabled>Complete Mission</button>
+        <button id="reset-button">Reset Mission</button>
+        <button id="new-game">New Mission</button>
+      </div>
+
+      <div id="message" class="hidden"></div>
+    </div>
+
+    <script>
+      // Game elements
+      const gameContainer = document.getElementById("game-container");
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+
+      // Controls and display elements
+      const totalCostDisplay = document.getElementById("total-cost");
+      const visitedCountDisplay = document.getElementById("visited-count");
+      const currentNodeDisplay = document.getElementById("current-node");
+      const routePathDisplay = document.getElementById("route-path");
+      const startButton = document.getElementById("start-button");
+      const completeRouteButton = document.getElementById("complete-route");
+      const resetButton = document.getElementById("reset-button");
+      const newGameButton = document.getElementById("new-game");
+      const messageDisplay = document.getElementById("message");
+
+      // Game state
+      let nodes = [];
+      let edges = [];
+      let selectedRoute = [];
+      let totalCost = 0;
+      let gameStarted = false;
+      let gameCompleted = false;
+      let nodeCounts = [5, 7, 9]; // Different difficulty levels
+      let currentLevel = 0;
+      let startNodeId = 1;
+
+      // Set canvas size to match container
+      function resizeCanvas() {
+        const rect = gameContainer.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+      }
+
+      // Generate random nodes
+      function generateNodes(count) {
+        const newNodes = [];
+        const margin = 60;
+        const width = canvas.width - 2 * margin;
+        const height = canvas.height - 2 * margin;
+
+        for (let i = 1; i <= count; i++) {
+          let x, y, tooClose;
+
+          // Make sure nodes are not too close to each other
+          do {
+            tooClose = false;
+            x = margin + Math.random() * width;
+            y = margin + Math.random() * height;
+
+            for (const node of newNodes) {
+              const distance = Math.sqrt(
+                Math.pow(x - node.x, 2) + Math.pow(y - node.y, 2)
+              );
+              if (distance < 80) {
+                tooClose = true;
+                break;
+              }
+            }
+          } while (tooClose);
+
+          newNodes.push({ id: i, x, y, label: getOutpostName(i) });
+        }
+
+        return newNodes;
+      }
+
+      // Generate edges between nodes with costs
+      function generateEdges(nodes) {
+        const newEdges = [];
+
+        // Ensure a hamiltonian cycle exists (each node connects to at least 2 others)
+        for (let i = 0; i < nodes.length; i++) {
+          const nextIndex = (i + 1) % nodes.length;
+          const from = nodes[i].id;
+          const to = nodes[nextIndex].id;
+          const fromNode = nodes[i];
+          const toNode = nodes[nextIndex];
+
+          // Calculate Euclidean distance for the cost
+          const distance = Math.sqrt(
+            Math.pow(fromNode.x - toNode.x, 2) +
+              Math.pow(fromNode.y - toNode.y, 2)
+          );
+          const cost = Math.round(distance / 5); // Scale down to get reasonable fuel costs
+
+          newEdges.push({ from, to, cost });
+        }
+
+        // Add additional random edges for more route options
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = i + 2; j < nodes.length; j++) {
+            // Skip adjacent nodes (already added) and don't connect every pair
+            if (j !== (i + 1) % nodes.length && Math.random() < 0.5) {
+              const from = nodes[i].id;
+              const to = nodes[j].id;
+              const fromNode = nodes[i];
+              const toNode = nodes[j];
+
+              const distance = Math.sqrt(
+                Math.pow(fromNode.x - toNode.x, 2) +
+                  Math.pow(fromNode.y - toNode.y, 2)
+              );
+              const cost = Math.round(distance / 5);
+
+              newEdges.push({ from, to, cost });
+            }
+          }
+        }
+
+        return newEdges;
+      }
+
+      // Generate outpost names
+      function getOutpostName(id) {
+        const prefixes = [
+          "Alpha",
+          "Beta",
+          "Gamma",
+          "Delta",
+          "Epsilon",
+          "Zeta",
+          "Eta",
+          "Theta",
+          "Iota",
+          "Kappa",
+        ];
+        return id <= prefixes.length ? prefixes[id - 1] : `P-${id}`;
+      }
+
+      // Initialize game
+      function initializeGame() {
+        resetGame();
+
+        // Clear existing nodes
+        gameContainer
+          .querySelectorAll(".node")
+          .forEach((node) => node.remove());
+        gameContainer
+          .querySelectorAll(".edge-cost")
+          .forEach((cost) => cost.remove());
+
+        // Generate new nodes and edges based on current level
+        nodes = generateNodes(nodeCounts[currentLevel]);
+        edges = generateEdges(nodes);
+
+        // Update the UI
+        visitedCountDisplay.textContent = `0/${nodes.length}`;
+
+        // Create visual elements
+        createNodes();
+        drawEdges();
+
+        // Reset game state
+        gameStarted = false;
+        gameCompleted = false;
+        completeRouteButton.disabled = true;
+        startButton.disabled = false;
+        messageDisplay.className = "hidden";
+      }
+
+      // Create node elements
+      function createNodes() {
+        nodes.forEach((node) => {
+          const nodeElement = document.createElement("div");
+          nodeElement.classList.add("node");
+          if (node.id === startNodeId) {
+            nodeElement.classList.add("start");
+          }
+          nodeElement.style.left = `${node.x}px`;
+          nodeElement.style.top = `${node.y}px`;
+          nodeElement.textContent = node.id;
+          nodeElement.dataset.id = node.id;
+
+          // Add tooltip with outpost name
+          nodeElement.addEventListener("mouseenter", (e) =>
+            showTooltip(e, `Outpost ${node.label}`)
+          );
+          nodeElement.addEventListener("mouseleave", hideTooltip);
+
+          nodeElement.addEventListener("click", () => {
+            if (gameStarted && !gameCompleted) {
+              selectNode(node.id);
+            }
+          });
+
+          gameContainer.appendChild(nodeElement);
+        });
+      }
+
+      // Draw edges and costs
+      function drawEdges() {
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw all edges
+        edges.forEach((edge) => {
+          const fromNode = nodes.find((n) => n.id === edge.from);
+          const toNode = nodes.find((n) => n.id === edge.to);
+
+          if (fromNode && toNode) {
+            // Draw the connection line
+            ctx.beginPath();
+            ctx.moveTo(fromNode.x, fromNode.y);
+            ctx.lineTo(toNode.x, toNode.y);
+            ctx.strokeStyle = "#3a5a9b";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Display the cost in the middle
+            const midX = (fromNode.x + toNode.x) / 2;
+            const midY = (fromNode.y + toNode.y) / 2;
+
+            const costLabel = document.createElement("div");
+            costLabel.classList.add("edge-cost");
+            costLabel.textContent = edge.cost;
+            costLabel.style.left = `${midX}px`;
+            costLabel.style.top = `${midY}px`;
+            gameContainer.appendChild(costLabel);
+          }
+        });
+
+        // If there's a selected route, highlight it
+        if (selectedRoute.length > 1) {
+          for (let i = 0; i < selectedRoute.length - 1; i++) {
+            const fromId = selectedRoute[i];
+            const toId = selectedRoute[i + 1];
+            const fromNode = nodes.find((n) => n.id === fromId);
+            const toNode = nodes.find((n) => n.id === toId);
+
+            if (fromNode && toNode) {
+              ctx.beginPath();
+              ctx.moveTo(fromNode.x, fromNode.y);
+              ctx.lineTo(toNode.x, toNode.y);
+              ctx.strokeStyle = "#5cff84";
+              ctx.lineWidth = 4;
+              ctx.stroke();
+            }
+          }
+        }
+      }
+
+      // Handle node selection
+      function selectNode(nodeId) {
+        const currentNodeId =
+          selectedRoute.length > 0
+            ? selectedRoute[selectedRoute.length - 1]
+            : startNodeId;
+
+        // Check if the node is already visited
+        if (selectedRoute.includes(nodeId)) {
+          showMessage("You've already visited this outpost!", "error");
+          return;
+        }
+
+        // Check if there's a valid connection between the current node and selected node
+        const edge = edges.find(
+          (e) =>
+            (e.from === currentNodeId && e.to === nodeId) ||
+            (e.from === nodeId && e.to === currentNodeId)
+        );
+
+        if (!edge) {
+          showMessage("No direct route available to this outpost!", "error");
+          return;
+        }
+
+        // Valid move, add to route
+        if (selectedRoute.length === 0) {
+          selectedRoute.push(startNodeId); // Add starting node if this is the first selection
+        }
+
+        selectedRoute.push(nodeId);
+
+        // Update node appearance
+        updateNodeVisuals();
+
+        // Update cost
+        totalCost += edge.cost;
+        totalCostDisplay.textContent = totalCost;
+
+        // Update route display
+        updateRouteDisplay();
+
+        // Update visited count
+        visitedCountDisplay.textContent = `${selectedRoute.length - 1}/${
+          nodes.length
+        }`;
+
+        // Update current node
+        currentNodeDisplay.textContent = getNodeLabel(nodeId);
+
+        // Check if all nodes are visited
+        if (
+          selectedRoute.length === nodes.length + 1 ||
+          selectedRoute.length === nodes.length
+        ) {
+          completeRouteButton.disabled = false;
+        }
+
+        // Clear any error messages
+        if (messageDisplay.classList.contains("error")) {
+          messageDisplay.className = "hidden";
+        }
+
+        // Redraw the path
+        drawEdges();
+      }
+
+      // Get node label
+      function getNodeLabel(id) {
+        const node = nodes.find((n) => n.id === id);
+        return node ? node.label : id;
+      }
+
+      // Update route display
+      function updateRouteDisplay() {
+        const routeLabels = selectedRoute.map((id) => getNodeLabel(id));
+        routePathDisplay.textContent = routeLabels.join(" → ");
+      }
+
+      // Update node visuals
+      function updateNodeVisuals() {
+        // Reset all nodes
+        document.querySelectorAll(".node").forEach((node) => {
+          node.classList.remove("visited", "current");
+          if (parseInt(node.dataset.id) === startNodeId) {
+            node.classList.add("start");
+          }
+        });
+
+        // Mark visited nodes
+        selectedRoute.forEach((id) => {
+          const nodeElement = document.querySelector(`.node[data-id="${id}"]`);
+          if (nodeElement) {
+            nodeElement.classList.add("visited");
+          }
+        });
+
+        // Mark current node
+        if (selectedRoute.length > 0) {
+          const currentId = selectedRoute[selectedRoute.length - 1];
+          const currentElement = document.querySelector(
+            `.node[data-id="${currentId}"]`
+          );
+          if (currentElement) {
+            currentElement.classList.add("current");
+          }
+        }
+      }
+
+      // Complete the route
+      function completeRoute() {
+        // Check if we've visited all nodes
+        if (selectedRoute.length < nodes.length) {
+          showMessage(
+            "You must visit all outposts before completing the mission!",
+            "error"
+          );
+          return;
+        }
+
+        // Check if we need to return to start
+        if (selectedRoute[selectedRoute.length - 1] !== startNodeId) {
+          const lastNodeId = selectedRoute[selectedRoute.length - 1];
+          const edge = edges.find(
+            (e) =>
+              (e.from === lastNodeId && e.to === startNodeId) ||
+              (e.from === startNodeId && e.to === lastNodeId)
+          );
+
+          if (!edge) {
+            showMessage(
+              "No direct route available back to the starting point!",
+              "error"
+            );
+            return;
+          }
+
+          // Add final leg back to start
+          selectedRoute.push(startNodeId);
+          totalCost += edge.cost;
+          totalCostDisplay.textContent = totalCost;
+          updateRouteDisplay();
+          drawEdges();
+        }
+
+        // Complete the mission
+        gameCompleted = true;
+        completeRouteButton.disabled = true;
+
+        // Calculate score based on optimal vs. actual cost
+        // (In a real implementation, you'd need to calculate the optimal TSP solution)
+        const optimalMultiplier = 0.8 + Math.random() * 0.1; // Simulate an "optimal" solution
+        const expectedOptimal = Math.floor(totalCost * optimalMultiplier);
+
+        let rank;
+        if (totalCost <= expectedOptimal) {
+          rank = "Expert Navigator";
+        } else if (totalCost <= expectedOptimal * 1.1) {
+          rank = "Elite Pilot";
+        } else if (totalCost <= expectedOptimal * 1.2) {
+          rank = "Skilled Explorer";
+        } else {
+          rank = "Space Cadet";
+        }
+
+        showMessage(
+          `Mission Complete! Your fuel usage: ${totalCost}. Rank: ${rank}`,
+          "success"
+        );
+
+        // Enable advancement to next level if not at max level
+        if (currentLevel < nodeCounts.length - 1) {
+          startButton.textContent = "Next Level";
+          startButton.disabled = false;
+        }
+      }
+
+      // Reset the game
+      function resetGame() {
+        selectedRoute = [];
+        totalCost = 0;
+        totalCostDisplay.textContent = "0";
+        visitedCountDisplay.textContent = `0/${nodes.length}`;
+        currentNodeDisplay.textContent = getNodeLabel(startNodeId);
+        routePathDisplay.textContent = "-";
+        gameCompleted = false;
+        completeRouteButton.disabled = true;
+
+        // Reset node visuals
+        updateNodeVisuals();
+
+        // Redraw edges
+        drawEdges();
+
+        // Clear message
+        messageDisplay.className = "hidden";
+      }
+
+      // Start the game
+      function startGame() {
+        if (startButton.textContent === "Next Level") {
+          // Advance to next level
+          currentLevel = Math.min(currentLevel + 1, nodeCounts.length - 1);
+          initializeGame();
+        } else {
+          // Start current level
+          gameStarted = true;
+          startButton.disabled = true;
+          showMessage(
+            "Mission started! Select the outposts to visit in sequence.",
+            "success"
+          );
+        }
+      }
+
+      // Show message
+      function showMessage(text, type) {
+        messageDisplay.textContent = text;
+        messageDisplay.className = type;
+      }
+
+      // Tooltip functionality
+      function showTooltip(event, text) {
+        hideTooltip(); // Remove any existing tooltip
+
+        const tooltip = document.createElement("div");
+        tooltip.classList.add("tooltip");
+        tooltip.textContent = text;
+
+        // Position the tooltip above the node
+        tooltip.style.left = `${event.clientX}px`;
+        tooltip.style.top = `${event.clientY - 40}px`;
+
+        document.body.appendChild(tooltip);
+      }
+
+      function hideTooltip() {
+        const tooltip = document.querySelector(".tooltip");
+        if (tooltip) {
+          tooltip.remove();
+        }
+      }
+
+      // Event listeners
+      startButton.addEventListener("click", startGame);
+      completeRouteButton.addEventListener("click", completeRoute);
+      resetButton.addEventListener("click", resetGame);
+      newGameButton.addEventListener("click", () => {
+        initializeGame();
+      });
+
+      // Initialize canvas and game
+      resizeCanvas();
+      initializeGame();
+
+      // Handle window resize
+      window.addEventListener("resize", () => {
+        resizeCanvas();
+        drawEdges();
+      });
+    </script>
+  </body>
+</html>
